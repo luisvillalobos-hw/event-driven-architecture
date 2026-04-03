@@ -1,0 +1,68 @@
+{
+  "projectName": "event-driven-architecture",
+  "languages": [
+    "C#"
+  ],
+  "techStack": [
+    "C#",
+    ".NET (implied by .csproj and .sln files)",
+    "Docker (from .dockerignore)",
+    "Message Broker (inferred from 'event-driven-architecture', OutboxProcessor, MessageReplicator, Worker.cs)",
+    "Relational Database (inferred from OutboxProcessor and general microservice data storage needs)",
+    "Blob/Object Storage (inferred from ClaimCheckProcessor)"
+  ],
+  "architecture": "event-driven",
+  "services": [
+    {
+      "name": "AccountService",
+      "type": "API",
+      "purpose": "Provides API endpoints for managing user accounts and likely handles account-related business logic and events."
+    },
+    {
+      "name": "InventoryService",
+      "type": "API",
+      "purpose": "Provides API endpoints for managing product inventory, updating stock levels, and handling inventory-related events."
+    },
+    {
+      "name": "OrchestratorService",
+      "type": "API",
+      "purpose": "Coordinates complex business workflows, such as order fulfillment, by initiating and reacting to events from other services. It acts as a central orchestrator for multi-service operations."
+    },
+    {
+      "name": "OutboxProcessor",
+      "type": "Worker",
+      "purpose": "Monitors service outbox tables to reliably publish domain events to the message broker, ensuring atomicity between local database transactions and message publication."
+    },
+    {
+      "name": "ClaimCheckProcessor",
+      "type": "Worker",
+      "purpose": "Processes 'claim check' messages by retrieving large payloads that were stored externally (e.g., in blob storage) using a reference contained in the message, then re-publishing the full message or processing it directly."
+    },
+    {
+      "name": "MessageReplicator",
+      "type": "Worker",
+      "purpose": "Replicates messages between different topics or message brokers, potentially for fan-out scenarios, integration with other systems, or disaster recovery/auditing purposes."
+    },
+    {
+      "name": "TestPublisher",
+      "type": "CLI",
+      "purpose": "A utility application used for manually publishing test events into the system, primarily for development, debugging, and integration testing."
+    },
+    {
+      "name": "OrderMaker",
+      "type": "Library",
+      "purpose": "Provides shared models and potentially business logic related to creating and managing orders, likely consumed by other services like OrchestratorService or TestPublisher."
+    },
+    {
+      "name": "Shared",
+      "type": "Library",
+      "purpose": "Contains common definitions, data transfer objects (DTOs), interfaces, or utilities shared across multiple services to promote consistency and reduce code duplication."
+    }
+  ],
+  "infrastructure": {
+    "ci": [],
+    "iac": [],
+    "k8s": false,
+    "docker": true
+  }
+}
