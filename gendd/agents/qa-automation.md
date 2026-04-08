@@ -4,92 +4,115 @@
 > Focus: Test frameworks, CI integration, coverage, reliability
 
 ---
-## QA Automation Playbook for event-driven-architecture
+## QA Automation Playbook for `event-driven-architecture`
 
-This playbook outlines the responsibilities and focus areas for an AI assistant acting as a QA Automation specialist within the `event-driven-architecture` project. Your primary goal is to ensure the reliability, correctness, and performance of event-driven flows and microservices, with a strong emphasis on automation.
+This playbook outlines essential guidelines for an AI assistant operating as a QA Automation specialist on the `event-driven-architecture` project. Your primary focus will be on building, maintaining, and enhancing automated test frameworks, ensuring robust CI integration, identifying coverage gaps, and improving test reliability across this asynchronous, microservices-based system.
 
 ### 1. Quick Start
 
-To effectively contribute, begin by understanding the core event flows and the existing test infrastructure.
+**Objective:** Understand the project's testing landscape and begin immediate contributions.
 
-*   **1.1 Understand the Core Flow:**
-    *   Review `OrchestratorService/Program.cs` and `OrchestratorService/Worker.cs` to understand order orchestration.
-    *   Examine `OutboxProcessor/OrderOutboxWorker.cs` to grasp reliable event publishing.
-    *   Analyze `TestPublisher/Program.cs` to see how test events are manually initiated – this is a good starting point for understanding event structures.
-    *   Map the "Order Creation and Fulfillment" core flow: Trace how events flow from initiation (e.g., `OrchestratorService` API) through the outbox, to other services, and finally through workers like `ClaimCheckProcessor` if large messages are involved.
-*   **1.2 Locate Test Projects:**
-    *   Search for directories named `*.Tests/` (e.g., `AccountService.Tests/`, `OrchestratorService.Tests/`) or a common `Tests/` folder at the root.
-    *   If no explicit test projects are found, assume the standard .NET pattern and prepare to create them, typically named `[ServiceOrLibraryName].Tests.csproj`.
-*   **1.3 Execute Existing Tests (If Any):**
-    *   Navigate to the solution root.
-    *   Run `dotnet test` to discover and execute all tests.
-    *   Identify any failing or consistently slow tests.
-*   **1.4 Set up Local Environment:**
-    *   Ensure Docker is running to support dependent services (e.g., message broker, database).
-    *   Investigate if a `docker-compose.yml` file exists to spin up the entire system. If not, note this as a critical gap for local testing.
+*   **Initial Read:**
+    *   Examine existing test projects: Look for `*.Tests.csproj` files (e.g., `AccountService.Tests/`, `Shared.Tests/`).
+    *   Review `Shared/` library: Understand core data contracts and utilities that form the basis of event payloads.
+    *   Inspect `Program.cs` files for `AccountService`, `InventoryService`, `OrchestratorService`, `OrderMaker` to grasp API entry points.
+    *   Understand `OutboxProcessor/OrderOutboxWorker.cs` for event reliability mechanics.
+*   **Key Commands:**
+    *   **Build all tests:** `dotnet build` from the solution root.
+    *   **Run all tests:** `dotnet test` from the solution root.
+    *   **Run specific test project:** Navigate to the test project directory (e.g., `cd AccountService.Tests/`) and run `dotnet test`.
+    *   **Run specific test file/method:** `dotnet test --filter "FullyQualifiedName~[YourTestName]"` (e.g., `dotnet test --filter "FullyQualifiedName~AccountService.Tests.Controllers.AccountControllerTests.GetAccounts_ReturnsOk"`)
+    *   **Run a service for local integration testing:** `dotnet run --project [ServiceDirectory]/[Service].csproj` (e.g., `dotnet run --project AccountService/AccountService.csproj`)
 
 ### 2. Role-Specific Context
 
-Your role is critical in validating the complex, asynchronous interactions inherent in an event-driven system.
+As a QA Automation AI for this `event-driven-architecture` project, your context is highly shaped by:
 
-*   **Event Contract Validation:** Event schemas (likely in `Shared/` or `OrderMaker/Models/`) are your most important contracts. Any change requires validation across all producers and consumers.
-*   **Asynchronous Assertions:** Traditional synchronous testing patterns are insufficient. You will frequently need to assert eventual consistency, waiting for events to propagate and effects to materialize.
-*   **Worker Service Reliability:** The `OutboxProcessor`, `ClaimCheckProcessor`, and `MessageReplicator` are foundational. Tests must cover their resilience to transient failures, message re-processing, and correct state transitions.
-*   **Integration Testing Focus:** Given the microservice architecture, integration tests that span multiple services and event flows are paramount. Unit tests are valuable, but the system's correctness is proven at the integration level.
-*   **Idempotency:** Messages can be redelivered. Your tests must confirm that processing the same event multiple times does not lead to incorrect state changes.
+*   **Asynchronous Nature:** Event publication and consumption happen independently. Tests must account for eventual consistency, message processing delays, and potential reordering. Direct `ASSERT` on immediate state changes after an event publish is usually incorrect.
+*   **Microservices:** Services are independently deployable units. Integration tests must simulate inter-service communication via the message broker.
+*   **Event Contracts:** The `Shared/` library contains critical event definitions. Any change to these requires careful regression testing across all producers and consumers.
+*   **Outbox Pattern:** The `OutboxProcessor` guarantees reliable event publishing. Your tests should confirm this mechanism's integrity, especially under failure conditions.
+*   **Lack of Explicit CI/CD:** This is a critical gap. Your role extends to proposing and integrating automated test runs within hypothetical or future CI/CD pipelines.
 
 ### 3. Key Areas
 
-| Category                | Files/Patterns                                                | Focus for QA Automation                                                                                                      |
-| :---------------------- | :------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------- |
-| **Test Frameworks**     | `*.Tests.csproj` (e.g., `AccountService.Tests/`), `Using NUnit/XUnit/MSTest;` | Identify and standardize the chosen framework. Ensure consistent reporting. Explore integration with assertion libraries (e.g., FluentAssertions) and mocking frameworks (e.g., Moq). |
-| **Test Organization**   | `[Service]/Tests/Unit/`, `[Service]/Tests/Integration/`, `Tests/EndToEnd/` | Enforce clear separation of unit, integration, and end-to-end tests. Integration tests should mirror event flow paths.                                |
-| **CI/CD Integration**   | (Likely `azure-pipelines.yml`, `.github/workflows/`, Jenkinsfile) | Ensure `dotnet test` runs automatically on every commit/PR. Configure test reporting and artifact publishing.                                 |
-| **Coverage Gaps**       | `OutboxProcessor/`, `ClaimCheckProcessor/`, `MessageReplicator/` | Critical worker services often lack comprehensive integration tests. Error handling paths, message deserialization failures, and retry logic are common gaps. |
-| **Flaky Test Patterns** | Asynchronous assertions, timing-dependent tests, shared resources. | Identify tests that fail intermittently. Implement robust retry mechanisms in tests, use message IDs for idempotency checks, and avoid relying on strict timing. |
-| **Event Contracts**     | `Shared/`, `OrderMaker/Models/`                              | Tests must validate event serialization/deserialization and schema evolution. Consider consumer-driven contract testing.               |
+| Area                            | Relevant Files/Patterns                                                                 | Automation Focus                                                                                                              |
+| :------------------------------ | :-------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| **Test Framework & Structure**  | `*.Tests.csproj` projects (e.g., `AccountService.Tests/`, `Shared.Tests/`)             | Standardize test project structure. Enforce consistent use of xUnit/NUnit patterns. Define clear separation for unit, integration, and end-to-end tests. |
+| **Test Organization**           | `[Service].Tests/Unit/`, `[Service].Tests/Integration/`, `[Service].Tests/E2E/`      | Ensure logical grouping of tests. Naming: `[ComponentName]_[Scenario]_[ExpectedResult]`. Use `[Fact]` for atomic tests, `[Theory]` for data-driven. |
+| **CI/CD Integration**           | Absence of `azure-pipelines.yml`, `.github/workflows/`, `Jenkinsfile`                 | Propose and integrate `dotnet test` commands into CI pipelines. Ensure test results (TRX format) are published.                 |
+| **Coverage Gaps**               | `OrchestratorService/Worker.cs`, `OutboxProcessor/OrderOutboxWorker.cs`, error paths   | Prioritize tests for critical paths: event orchestration, outbox reliability, message processing failures, inter-service contracts. |
+| **Flaky Test Patterns**         | Asynchronous assertions, reliance on wall-clock time, shared mutable state               | Identify tests failing intermittently. Implement retry mechanisms, explicit waits (e.g., polling for event consumption), and isolated test environments. |
+| **Inter-Service Contracts**     | `Shared/` library models (e.g., event DTOs), API request/response models                 | Implement contract tests (e.g., using Pact or consumer-driven contracts) to prevent breaking changes.                         |
 
 ### 4. Safe First Changes
 
-*   **4.1 Document Existing Tests:** Create a markdown file (`docs/Tests.md`) outlining where tests are, what they cover, and how to run them.
-*   **4.2 Enhance `TestPublisher` Usage:**
-    *   Create a dedicated integration test project (e.g., `IntegrationTests/`).
-    *   Add a test that uses `TestPublisher` to send a known event, then asserts the eventual state of a downstream service (e.g., check `InventoryService` after an order event). This establishes a baseline for async testing.
-*   **4.3 Introduce Basic CI Reporting:**
-    *   If a CI pipeline exists, ensure `dotnet test --logger "trx;LogFileName=test-results.trx"` is used to generate test reports.
-    *   Configure the CI system to publish these `.trx` files as test artifacts.
-*   **4.4 Add a Health Check Integration Test:**
-    *   For `AccountService`, `InventoryService`, and `OrchestratorService`, add a simple integration test that calls a `/health` endpoint or a basic API endpoint to ensure the service starts successfully and can connect to its dependencies.
+These tasks are low-risk and excellent for familiarizing yourself with the codebase:
+
+*   **Add a simple unit test for `Shared/` utility:** Identify a pure function or utility class within `Shared/` and add a basic unit test in `Shared.Tests/`.
+    *   *Example:* A simple string formatter in `Shared/Utils.cs` can have a test in `Shared.Tests/UtilsTests.cs`.
+*   **Improve existing test naming:** Refactor a few test method names to follow `[ComponentName]_[Scenario]_[ExpectedResult]` convention for clarity.
+    *   *Example:* Rename `Test1` to `GetAccountById_ExistingAccount_ReturnsCorrectAccount` in `AccountService.Tests/Controllers/AccountControllerTests.cs`.
+*   **Introduce a basic health check integration test:** For `AccountService`, add a simple test in `AccountService.Tests/Integration/HealthCheckTests.cs` that hits the `/health` or a basic `/status` endpoint (if one exists) to ensure the API is reachable. This requires configuring a test server.
+*   **Add a missing `[Fact]` or `[Theory]` to an existing test class:** Find a test class (e.g., `InventoryService.Tests/Controllers/InventoryControllerTests.cs`) and add a new, simple test case for an existing method's edge case.
 
 ### 5. Danger Zones
 
-*   **5.1 Modifying Worker Service Tests (`OutboxProcessor`, `ClaimCheckProcessor`, `MessageReplicator`):** These services are critical for reliability. Changes to their tests (or adding new ones) require deep understanding of their asynchronous nature and potential impact on event flow. Verify side effects thoroughly.
-*   **5.2 Introducing Timing-Dependent Assertions:** Avoid `Thread.Sleep()` or hardcoded delays in tests. Use robust polling mechanisms with timeouts (e.g., `Polly` for retries, `FluentAssertions.Eventually()` for async waits) to check for eventual consistency.
-*   **5.3 External Dependencies in Integration Tests:** Direct interaction with actual message brokers or databases in tests can introduce flakiness and slow execution. Prefer test doubles where appropriate, but ensure critical integration paths use real dependencies in dedicated integration tests. Avoid shared state between integration tests.
-*   **5.4 `TestPublisher` in Production:** While low risk for QA, be aware of the "Risk Hotspot" regarding `TestPublisher`. Do not deploy or encourage its use in production environments.
-*   **5.5 Coverage of Error Scenarios:** Testing how the system reacts to message deserialization failures, database connection issues, or upstream service timeouts is crucial but complex. Incorrectly simulating these can lead to false positives or system instability.
+Approach these areas with extreme caution, as changes can have wide-reaching, non-obvious impacts:
+
+*   **`Shared/` library modifications:** Any change to models or interfaces in `Shared/` can break multiple services that depend on them, especially event contracts.
+    *   *Mitigation:* Require comprehensive regression tests across all services for `Shared/` changes. Implement consumer-driven contract testing.
+*   **`OutboxProcessor/OrderOutboxWorker.cs`:** This is the heart of reliable event publishing. Any changes or introduced bugs here can lead to data loss, duplicates, or system-wide event processing failures.
+    *   *Mitigation:* Extreme caution, thorough unit and integration tests, potentially chaos engineering for failure scenarios.
+*   **Asynchronous assertions in integration tests:** Asserting immediately after publishing an event without waiting for the consumer to process it will lead to flaky tests.
+    *   *Mitigation:* Implement robust polling mechanisms or message consumption verification in integration tests.
+*   **Direct database modifications in tests:** Bypassing service logic in integration tests to directly manipulate the database can hide bugs in the service's data access layer.
+    *   *Mitigation:* Favor interacting with services via their public APIs/event interfaces. Use transactions for test setup/teardown.
+*   **Production-like message broker interactions in local tests:** Relying on a shared/external message broker for integration tests can introduce non-determinism.
+    *   *Mitigation:* Use in-memory or test-specific message broker instances for integration tests.
 
 ### 6. Checklists
 
-#### 6.1 New Feature/Service QA Automation Review
+#### 6.1. New Feature / Service Testing Checklist
 
-*   [ ] Does the new feature/service have a dedicated `*.Tests.csproj`?
-*   [ ] Are unit tests covering complex business logic and edge cases?
-*   [ ] Are integration tests covering event publishing and consumption paths?
-*   [ ] Does the integration test suite validate the end-to-end flow of key events?
-*   [ ] Are asynchronous assertions used appropriately for event-driven interactions?
-*   [ ] Is idempotency of event handlers verified?
-*   [ ] Does the test suite cover error handling and resilience scenarios (e.g., invalid events, transient dependency failures)?
-*   [ ] Are new event contracts defined in `Shared/` or `OrderMaker/Models/` properly validated (serialization/deserialization)?
-*   [ ] Are tests clearly organized into `Unit/`, `Integration/`, `EndToEnd/` categories?
+*   [ ] **Unit Tests:** Are critical business logic units covered by isolated unit tests?
+*   [ ] **API Contract Tests:** If applicable, are API endpoints tested for correct request/response contracts?
+*   [ ] **Event Producer Tests:** If the service publishes events, are tests in place to verify the correct event type and payload are published under various scenarios?
+*   [ ] **Event Consumer Tests:** If the service consumes events, are tests in place to verify correct processing of valid, invalid, and unexpected event payloads?
+*   [ ] **Integration Tests:** Do tests cover the primary flow(s) involving database interactions and/or message broker interactions for this service?
+*   [ ] **End-to-End Test (if applicable):** Does a higher-level test simulate the overall business flow involving multiple services?
+*   [ ] **Error Handling:** Are tests present for expected error paths (e.g., invalid input, external service failure)?
+*   [ ] **Performance/Load Considerations:** Are there plans for performance testing if this feature is critical?
+*   [ ] **Reliability:** If events are involved, is the outbox pattern (or equivalent) being correctly used and tested?
 
-#### 6.2 Pull Request (PR) Test Review
+#### 6.2. Pull Request (PR) Review Checklist for Tests
 
-*   [ ] Do new/modified tests adhere to existing naming conventions and organization?
-*   [ ] Do new tests fail before the change and pass after (if applicable)?
-*   [ ] Are any existing tests becoming flaky due to the change?
-*   [ ] Are the tests readable, maintainable, and self-documenting?
-*   [ ] Are test dependencies (e.g., mocks, test data) isolated and managed effectively?
-*   [ ] For event-related changes, are *all* impacted producers and consumers considered in the test scope?
-*   [ ] Is the PR introducing or fixing any known flaky tests?
-*   [ ] Is the test coverage for modified code adequate, especially for critical paths and error handling?
+*   [ ] **Test Coverage:** Do new/changed code paths have corresponding tests?
+*   [ ] **Test Readability:** Are test names clear, concise, and descriptive? Are tests easy to understand?
+*   [ ] **Test Isolation:** Are tests independent and free from side effects from other tests?
+*   [ ] **Deterministic:** Do tests produce consistent results on repeated runs? (Watch for async flakiness)
+*   [ ] **Appropriate Test Level:** Are unit tests, integration tests, and E2E tests used where appropriate?
+*   [ ] **`Shared/` Impact:** If `Shared/` is changed, are affected services' tests updated/expanded?
+*   [ ] **Dependencies:** Are external dependencies mocked/stubbed effectively in unit tests?
+*   [ ] **Performance Impact:** Do integration/E2E tests add significant time to the test suite?
+
+#### 6.3. Flaky Test Investigation Checklist
+
+*   [ ] **Identify Pattern:** Does the test fail randomly, or under specific conditions (e.g., concurrent runs, CI environment)?
+*   [ ] **Review Test Code:**
+    *   Are there any implicit timing assumptions (e.g., `Thread.Sleep`)?
+    *   Is there shared mutable state between tests?
+    *   Are assertions waiting for eventual consistency (e.g., polling, Awaitility)?
+*   [ ] **External Dependencies:** Is the flakiness related to an external service (database, message broker, API call)?
+*   [ ] **Test Environment:** Are there differences between local and CI environments that could cause flakiness?
+*   [ ] **Logging/Tracing:** Add more detailed logging or tracing to pinpoint the failure point during a flaky run.
+*   [ ] **Isolation:** Try running the flaky test in isolation, and then within its class/project, to see if order or concurrency matters.
+
+#### 6.4. Event Contract Change Review Checklist
+
+*   [ ] **`Shared/` Impact:** Is the change in `Shared/` (e.g., event DTO)?
+*   [ ] **Producers Identified:** Which services produce this event? Are their tests updated to reflect the new contract?
+*   [ ] **Consumers Identified:** Which services consume this event? Are their tests updated to handle the new contract?
+*   [ ] **Backward Compatibility:** Is the change backward-compatible? If not, is there a migration strategy and robust versioning?
+*   [ ] **Integration Tests:** Do integration tests verify the end-to-end flow with the new event contract?
+*   [ ] **Schema Validation:** If schema validation is in place, is the schema updated and tested?

@@ -1,89 +1,88 @@
 ## DevOps & Infrastructure Context Document
 
-### 1. Relevance to This Codebase
+### Relevance to This Codebase
 
-For the `event-driven-architecture` project, DevOps and Infrastructure are critically important due to its microservices design and event-driven nature. The system comprises multiple independent services (ee.g., `AccountService`, `InventoryService`, `OrchestratorService`, `OutboxProcessor`, `ClaimCheckProcessor`, `MessageReplicator`) that must be built, deployed, and managed reliably and efficiently. The success of an event-driven architecture heavily depends on consistent environments, automated deployment processes, and robust infrastructure for message brokers, databases, and object storage. The current lack of detected automated CI/CD and Infrastructure as Code (IaC) significantly impacts the project's operational maturity, scalability, and reliability, making this area a primary concern for future development and stability.
+For an event-driven microservices architecture like `event-driven-architecture`, robust DevOps and infrastructure practices are paramount. The system relies on multiple interconnected services (AccountService, InventoryService, OrchestratorService, various Workers, OutboxProcessor) that need consistent build, deployment, and operational environments. The absence of formalized CI/CD and Infrastructure as Code (IaC), despite the use of Docker for containerization, presents significant challenges. Without these, deployments are likely manual, inconsistent, and prone to errors, leading to potential service instability, difficult debugging, and slow delivery of new features. Effective DevOps is critical for managing the complexity of inter-service communication, ensuring reliable event delivery (especially with the OutboxProcessor), and maintaining environment parity across development, testing, and production.
 
-### 2. Current State Assessment
+### Current State Assessment
 
-| Artifact Category | Location / Pattern | Maturity Level | Notes |
-|:------------------|:-------------------|:---------------|:------|
-| **Containerization** | `*/Dockerfile` | High | Each service (e.g., `AccountService/Dockerfile`, `InventoryService/Dockerfile`, `OutboxProcessor/Dockerfile`, `TestPublisher/Dockerfile`) contains its own Dockerfile for containerization. |
-|                   | `*.dockerignore` | High | Each service directory or the root directory contains `.dockerignore` files for efficient image builds. |
-|                   | `docker-compose.yml` (inferred) | Medium | A `docker-compose.yml` file is likely present at the root of the repository or in a dedicated `docker/` subdirectory, facilitating local multi-service development and orchestration. |
-| **CI/CD Pipelines** | *None detected* | None | No explicit CI/CD configuration files (e.g., `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`) are found. |
-| **Infrastructure as Code** | *None detected* | None | No IaC files (e.g., Terraform, Pulumi, CloudFormation) are detected to manage cloud resources. |
-| **Deployment Scripts** | *None detected explicitly* | Low | Deployment is likely a manual process or involves simple shell scripts not explicitly identified as a pipeline component. |
-| **Environment Config** | `appsettings.json` (inferred) | Low | Configuration is likely managed via `appsettings.json` files within each service and potentially environment variables, but no centralized environment management strategy is evident. |
-| **Secrets Management** | *None detected* | None | No explicit secrets management solution (e.g., Vault, AWS Secrets Manager, Kubernetes Secrets) is identified. |
+| Artifact Category | Description                                          | Location                                                | Maturity Level |
+| :---------------- | :--------------------------------------------------- | :------------------------------------------------------ | :------------- |
+| **Containerization** | Docker definitions for each service.                | `*/Dockerfile`                                          | HIGH           |
+|                    | Global Docker ignore rules.                          | `.dockerignore`                                         | HIGH           |
+|                    | Local multi-service orchestration (inferred).        | `docker-compose.yml`                                    | MEDIUM         |
+| **Build Automation** | Standard .NET build processes within Dockerfiles.   | `*/Dockerfile` (using `dotnet build`, `dotnet publish`) | HIGH           |
+| **Environment Config** | Environment variables within Dockerfiles or `docker-compose.yml`. | `*/Dockerfile`, `docker-compose.yml` (inferred)         | LOW            |
 
-### 3. What's Missing or Weak
+### What's Missing or Weak
 
-| Gap / Weakness | Impact | Priority |
-|:---------------|:-------|:---------|
-| **CI/CD Pipeline** | High risk of manual errors, inconsistent deployments, slow release cycles, lack of automated testing feedback. | HIGH |
-| **Infrastructure as Code (IaC)** | Difficult to provision and manage cloud resources consistently; risk of environment drift; manual, error-prone infrastructure changes. | HIGH |
-| **Container Orchestration Strategy** | Without Kubernetes or similar, scaling and managing multiple microservices in production is complex and manual. | HIGH |
-| **Automated Deployment Strategy** | No defined blue/green, canary, or rolling update strategies, leading to potential downtime and risky updates. | MEDIUM |
-| **Centralized Secret Management** | Risk of hardcoded secrets or insecure storage, compliance issues, and difficulty rotating credentials. | MEDIUM |
-| **Automated Security Scanning** | Lack of integrated image scanning, SAST, or dependency scanning in any build/deployment process. | MEDIUM |
-| **Observability Integration** | No explicit configuration for metrics, logging, or tracing agents to monitor service health post-deployment. | MEDIUM |
-| **Environment Parity** | Without IaC and automated deployments, ensuring development, staging, and production environments are consistent is challenging. | MEDIUM |
+| Gap/Weakness                     | Impact                                                                         | Priority |
+| :------------------------------- | :----------------------------------------------------------------------------- | :------- |
+| **CI/CD Pipelines**              | Manual and inconsistent builds/deployments; slow feedback loops; high risk of human error; no automated testing or security scanning. | CRITICAL |
+| **Infrastructure as Code (IaC)** | Manual infrastructure provisioning and configuration; configuration drift; lack of version control for infrastructure; difficult to reproduce environments. | CRITICAL |
+| **Centralized Secret Management** | Secrets likely stored directly in configuration files, environment variables, or CI system directly without rotation/auditing. | HIGH     |
+| **Automated Deployment Strategy** | No defined blue/green, canary, or rolling update mechanism; manual rollbacks; potential for downtime during deployments. | HIGH     |
+| **Environment Management**       | Lack of clear definitions for development, staging, production environments; inconsistent configurations across environments. | MEDIUM   |
+| **Container Image Security Scan** | No automated scanning for vulnerabilities in Docker images.                       | MEDIUM   |
+| **Observability Integration**    | No explicit integration for metrics, logging, or tracing into CI/CD/deployment workflows. | MEDIUM   |
 
-### 4. Key Patterns and Conventions
+### Key Patterns and Conventions
 
-| Pattern Name | Where Used | Notes |
-|:-------------|:-----------|:------|
-| **Containerization per Service** | `AccountService/Dockerfile`, `InventoryService/Dockerfile`, `OutboxProcessor/Dockerfile`, etc. | Each microservice and worker has its own `Dockerfile` for self-contained packaging. |
-| **Multi-stage Docker Builds** (inferred) | Within `*/Dockerfile` files | Likely utilizes multi-stage builds (`FROM mcr.microsoft.com/dotnet/sdk AS build`, `FROM mcr.microsoft.com/dotnet/aspnet AS final`) to produce smaller, more secure production images. |
-| **Local Orchestration with Docker Compose** (inferred) | Root `docker-compose.yml` | Used to define and run the multi-service application locally for development and testing. |
-| **`.dockerignore` for Build Optimization** | `AccountService/.dockerignore`, `InventoryService/.dockerignore`, etc. | Used to exclude unnecessary files from the Docker build context, speeding up builds and reducing image size. |
-| **C# .NET Build Process** | Within `Dockerfile` files (e.g., `RUN dotnet publish`) | Standard `dotnet publish` commands are used within Dockerfiles to build and publish the .NET applications. |
+| Pattern Name          | Where Used                                         | Notes                                                                      |
+| :-------------------- | :------------------------------------------------- | :------------------------------------------------------------------------- |
+| **Per-Service Dockerfile** | `AccountService/Dockerfile`, `InventoryService/Dockerfile`, `OutboxProcessor/Dockerfile`, etc. | Each runnable component has its own Dockerfile for containerization.       |
+| **Multi-stage Docker Builds** | Within each `*/Dockerfile` (inferred).      | Uses a build stage for compilation and a runtime stage for the final image to reduce size. |
+| **Local Orchestration with Docker Compose** | `docker-compose.yml` (inferred).                 | Used for running multiple services and their dependencies locally for development. |
+| **Environment Variables for Configuration** | `Dockerfile` `ENV` instructions, `docker-compose.yml` environment sections. | Configuration values are passed into containers via environment variables. |
 
-### 5. Risks and Hotspots
+### Risks and Hotspots
 
-| Risk | Location / Signal | Severity | Mitigation / Notes |
-|:-----|:------------------|:---------|:-------------------|
-| **Lack of CI/CD Pipeline** | General project context; absence of `.github/workflows/`, `.gitlab-ci.yml`, etc. | HIGH | Introduces manual errors, slow deployments, and unreliable releases. All changes are riskier. |
-| **Lack of Infrastructure as Code** | General project context; absence of Terraform, Pulumi, CloudFormation files. | HIGH | Environments are likely provisioned manually, leading to inconsistencies, configuration drift, and difficult disaster recovery. |
-| **Manual Deployment Process** | Absence of automated deployment scripts or pipelines. | HIGH | High potential for human error, increased downtime during deployments, and lack of auditability. |
-| **Secret Management Immaturity** | No explicit secret management solution detected. | MEDIUM | Risk of exposing sensitive information through source control, configuration files, or insecure environments. |
-| **Operational Complexity** | Multiple microservices without orchestration or automation. | MEDIUM | Scaling, monitoring, and managing the health of individual services will be burdensome and error-prone. |
-| **No Container Security Scanning** | Absence of security scanning tools (Trivy, Snyk) in build/deploy process. | MEDIUM | Container images may contain known vulnerabilities that go undetected until production. |
+| Risk                               | Location                                                     | Severity | Mitigation                                                       |
+| :--------------------------------- | :----------------------------------------------------------- | :------- | :--------------------------------------------------------------- |
+| **Manual Deployment Inconsistency** | Entire codebase (due to lack of CI/CD and IaC).              | HIGH     | Implement CI/CD for automated builds/deployments; introduce IaC. |
+| **Configuration Drift**            | Production and staging environments (lack of IaC).           | HIGH     | Implement IaC to manage all infrastructure components.           |
+| **Secret Exposure/Insecurity**     | `docker-compose.yml`, environment variable definitions (inferred). | HIGH     | Implement a dedicated secret management solution (e.g., Vault, AWS Secrets Manager). |
+| **Outdated/Vulnerable Dependencies** | `*.csproj` files (lack of automated scanning).               | MEDIUM   | Integrate dependency vulnerability scanning into CI/CD pipeline. |
+| **Service Downtime During Deploy** | All services (lack of automated deployment strategy).        | MEDIUM   | Implement a robust deployment strategy (e.g., rolling updates, blue/green). |
+| **Large Docker Image Sizes**       | Individual `*/Dockerfile` (if multi-stage builds are not optimized or base images are large). | LOW      | Review Dockerfiles for optimization opportunities, ensure efficient multi-stage builds. |
 
-### 6. AI Agent Guidelines
+### AI Agent Guidelines
 
 #### DO
-*   **Always check** `*/Dockerfile` files when investigating how a specific service is built and packaged into a container image.
-*   **Always check** for a root-level `docker-compose.yml` (inferred) when looking for local development and multi-service orchestration setups.
-*   **Refer to** the `.dockerignore` files alongside Dockerfiles to understand what artifacts are included or excluded from container builds.
-*   **Investigate** the `.csproj` files for build configurations and dependencies as part of the Docker build process.
+
+*   **Refer to `*/Dockerfile`**: Always consult the specific service's `Dockerfile` to understand its build process, base image, and runtime dependencies.
+*   **Check `docker-compose.yml`**: Examine the top-level `docker-compose.yml` for local development setup, service interdependencies, and environment variable configurations when addressing local development or testing scenarios.
+*   **Identify Build Steps in Dockerfiles**: When proposing changes related to building or packaging, refer to the `dotnet build` and `dotnet publish` steps within the `Dockerfile` for the correct context.
+*   **Assume Manual Operations**: When asked about deployment or infrastructure management, assume these are currently manual processes and highlight the need for automation.
 
 #### DON'T
-*   **Do NOT** assume any automated CI/CD pipelines exist for building, testing, or deploying changes.
-*   **Do NOT** assume infrastructure components (databases, message brokers, cloud services) are managed by code; they are likely provisioned manually.
-*   **Do NOT** attempt to make changes assuming a deployment strategy (e.g., blue/green, canary) is in place; manual steps are likely required.
-*   **Do NOT** assume secrets are managed securely via an external system; investigate `appsettings.json` and environment variables for potential secret exposure.
+
+*   **Assume CI/CD Automation**: Do not assume the existence of CI/CD pipelines (e.g., GitHub Actions, GitLab CI, Jenkins) for build, test, or deploy operations.
+*   **Assume IaC Management**: Do not assume that cloud infrastructure (e.g., databases, message brokers, compute instances) is managed by Infrastructure as Code tools (e.g., Terraform, Pulumi).
+*   **Suggest In-Place Updates**: Do not suggest or rely on the ability to update running containers or infrastructure components without a complete redeployment through a defined process.
+*   **Embed Secrets Directly**: Never suggest adding secrets directly into Dockerfiles, `docker-compose.yml`, or version-controlled configuration files.
 
 #### ALWAYS CHECK
-*   **Before proposing any deployment-related changes:** Thoroughly investigate the current manual build and deployment steps, as these are critical gaps.
-*   **Before modifying service configurations for different environments:** Identify the current method of environment-specific configuration (`appsettings.json`, environment variables) and how it's applied, as no centralized management is evident.
-*   **Before introducing new infrastructure components:** Determine how existing infrastructure is provisioned and managed, as manual processes are likely in place.
 
-### 7. Related Context Areas
+*   **`*/Dockerfile` for each service**: Before proposing any container-related change (base image, dependencies, entrypoint).
+*   **`docker-compose.yml`**: For how services are linked and configured in a local development environment.
+*   **The absence of CI/CD configuration files**: Before discussing deployment automation or pipeline steps.
+*   **The absence of IaC files**: Before discussing infrastructure provisioning or management.
+*   **Environment variable usage**: How configuration is passed to services, particularly for environment-specific settings.
 
-*   **[architecture](./architecture.md)**: Defines the overall system structure, service boundaries, and communication patterns which directly influence deployment strategies and infrastructure needs.
-*   **[site-reliability](./site-reliability.md)**: Heavily dependent on robust DevOps practices for monitoring, logging, alerting, and incident response, all of which are currently underdeveloped in this project.
-*   **[security](./security.md)**: Directly impacted by secret management practices, container image security, and security scanning in the deployment lifecycle.
-*   **[release-management](./release-management.md)**: The current lack of CI/CD means the release process is manual and undefined, creating significant challenges for predictable releases.
-*   **[quality-assurance](./quality-assurance.md)**: Integration of automated tests into a CI pipeline is crucial for quality assurance, which is currently a missing component.
+### Related Context Areas
 
-### 8. Key Files
+*   [architecture](./architecture.md) — For understanding how services interact and how deployments might affect system design.
+*   [site-reliability](./site-reliability.md) — For addressing monitoring, logging, and incident response implications for deployments.
+*   [security](./security.md) — For understanding secret management, image scanning, and overall DevSecOps posture.
+*   [release-management](./release-management.md) — For informing strategies around versioning, release cadence, and deployment artifacts.
+*   [quality-assurance](./quality-assurance.md) — For integrating automated testing into any future CI/CD processes.
 
-| File / Pattern | Purpose | Notes |
-|:---------------|:--------|:------|
-| `*/Dockerfile` | Defines how each individual service (`AccountService`, `InventoryService`, `OutboxProcessor`, etc.) is containerized. | Essential for understanding build process and dependencies. |
-| `*.dockerignore` | Specifies files and directories to exclude from the Docker build context. | Improves build efficiency and reduces image size. |
-| `docker-compose.yml` (inferred) | Defines and links multiple Docker containers for local development and testing. | If present, provides the local multi-service orchestration setup. |
-| `*/appsettings.json` (inferred) | Contains configuration settings for each .NET application, potentially including environment-specific overrides. | Primary source for application configuration. |
-| `*.csproj` | Project files for each C# service, defining build targets, dependencies, and project structure. | Crucial for the `dotnet publish` step within Dockerfiles. |
+### Key Files
+
+| File/Pattern              | Purpose                                                      | Notes                                                              |
+| :------------------------ | :----------------------------------------------------------- | :----------------------------------------------------------------- |
+| `*/Dockerfile`            | Defines how each individual service/worker is containerized. | Critical for understanding build process and runtime environment.  |
+| `.dockerignore`           | Specifies files/directories to exclude from Docker build context. | Ensures efficient and secure image builds.                         |
+| `docker-compose.yml`      | Orchestrates multiple services for local development/testing. | Crucial for understanding local service dependencies and setup.    |
+| `scripts/` (if present)   | Custom build or deployment scripts.                          | Currently assumed minimal, but could exist for manual tasks.       |

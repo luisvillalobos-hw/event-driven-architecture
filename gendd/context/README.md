@@ -8,10 +8,11 @@ to understand this project and generate accurate code.
 | File | Area | Confidence |
 |------|------|------------|
 | `devops-infrastructure.md` | DevOps & Infrastructure | HIGH |
+| `architecture.md` | Architecture | HIGH |
 | `backend-development.md` | Backend Development | HIGH |
-| `site-reliability.md` | Site Reliability | HIGH |
 | `quality-assurance.md` | Quality Assurance | HIGH |
+| `site-reliability.md` | Site Reliability | HIGH |
 | `technical-leadership.md` | Technical Leadership | HIGH |
-| `security.md` | Security | MEDIUM |
 | `database-management.md` | Database Management | MEDIUM |
-| `architecture.md` | Architecture | BASELINE |
+| `technical-writing.md` | Technical Writing | MEDIUM |
+| `release-management.md` | Release Management | MEDIUM |
